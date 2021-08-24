@@ -3,12 +3,13 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class Fox : MonoBehaviour
-{   
-    
+{       
     Rigidbody2D rb;
     Animator anim;
+    [Header("GroundCheck")]
     [SerializeField] Collider2D standingCollider;
     [SerializeField] Transform groundCheckColl;
+    [Header("Crouch")]
     [SerializeField] Transform ceilingCheckColl;
     [SerializeField] LayerMask groundLayer;
 
@@ -23,10 +24,10 @@ public class Fox : MonoBehaviour
     float runSpeedModifier = 2f;
     float crouchSpeedModifier = 0.5f;
 
-    [SerializeField] bool isGrounded = false;
-    bool isRunning = false;
+    bool isGrounded;
+    bool isRunning;
     bool facingRight = true;
-    bool crouchPressed = false;
+    bool crouchPressed;
     bool multipleJump;
     bool coyoteJump;
 
@@ -73,6 +74,13 @@ public class Fox : MonoBehaviour
         Move(horizontalValue, crouchPressed);
     }
 
+    private void OnDrawGizmosSelected()
+    {
+        Gizmos.color = Color.yellow;
+        Gizmos.DrawSphere(groundCheckColl.position, groundCheckRadius);
+        Gizmos.color = Color.red;
+        Gizmos.DrawSphere(ceilingCheckColl.position, ceilingCheckRadius);
+    }
     void GroundCheck()
     {
         bool wasGrounded = isGrounded;
@@ -98,7 +106,6 @@ public class Fox : MonoBehaviour
             
         //If detect ground the jump bool is disabled in anim
         anim.SetBool("Jump", !isGrounded);
-
     }
 
     #region Jump
@@ -149,7 +156,6 @@ public class Fox : MonoBehaviour
     void Move(float direction, bool crouchFlag)
     {
         #region Crouch
-
         //If we are crouch and then disable crouching
         //Check above player head for collisions
         //If there are any - stay crouched | if not, uncrouch
@@ -160,9 +166,7 @@ public class Fox : MonoBehaviour
         }
 
         anim.SetBool("Crouch", crouchFlag);
-        standingCollider.enabled = !crouchFlag;
-        
-
+        standingCollider.enabled = !crouchFlag;        
         #endregion
 
         #region Move and Run
@@ -198,5 +202,5 @@ public class Fox : MonoBehaviour
         // of the RigidBody2D velocity
         anim.SetFloat("xVelocity", Mathf.Abs(rb.velocity.x));
         #endregion
-    }
+    }   
 }
