@@ -17,6 +17,8 @@ public class Fox : MonoBehaviour
     const float ceilingCheckRadius = 0.2f;
     [SerializeField] float speed = 2;
     [SerializeField] float jumpPower = 500;
+    [SerializeField] int totalJumps;
+    int availableJumps;
     float horizontalValue;
     float runSpeedModifier = 2f;
     float crouchSpeedModifier = 0.5f;
@@ -24,17 +26,23 @@ public class Fox : MonoBehaviour
     [SerializeField] bool isGrounded = false;
     bool isRunning = false;
     bool facingRight = true;
-    bool jump = false;
     bool crouchPressed = false;
+    bool multipleJump;
+    bool coyoteJump;
 
     void Awake()
     {
+        availableJumps = totalJumps;
+
         rb = GetComponent<Rigidbody2D>();
         anim = GetComponent<Animator>();
     }
 
     void Update()
     {
+        //Set the yVelocity in the anim
+        anim.SetFloat("yVelocity", rb.velocity.y);
+
         //Store the horizontal value 
         horizontalValue = Input.GetAxisRaw("Horizontal");
 
@@ -47,41 +55,100 @@ public class Fox : MonoBehaviour
 
         //If we press jump
         if (Input.GetButtonDown("Jump"))
-            jump = true;
-        //If we release space bar - fall
-        else if (Input.GetButtonUp("Jump"))
-            jump = false;
-
+            Jump();
+                  
         //If we press crouch
         if (Input.GetButtonDown("Crouch"))
             crouchPressed = true;
         //If we release crouch - stand
         else if (Input.GetButtonUp("Crouch"))
             crouchPressed = false;
-    }
 
+    }
 
     //Every time the user presses a key
     void FixedUpdate()
     {
         GroundCheck();
-        Move(horizontalValue, jump, crouchPressed);
+        Move(horizontalValue, crouchPressed);
     }
 
     void GroundCheck()
     {
+        bool wasGrounded = isGrounded;
         isGrounded = false;
 
         //Check if the player is touching the ground 
         Collider2D[] colliders = Physics2D.OverlapCircleAll(groundCheckColl.position, groundCheckRadius, groundLayer);
         if (colliders.Length > 0)
+        {
             isGrounded = true;
+            if (!wasGrounded)
+            {
+                availableJumps = totalJumps;
+                //Figure out if remove the code below:
+                multipleJump = false;
+            }                                      
+        }
+        else
+        {
+            if (wasGrounded)
+                StartCoroutine(CoyoteJumpDelay());
+        }
+            
+        //If detect ground the jump bool is disabled in anim
+        anim.SetBool("Jump", !isGrounded);
+
     }
 
-
-    void Move(float direction, bool jumpFlag, bool crouchFlag)
+    #region Jump
+    IEnumerator CoyoteJumpDelay()
     {
-        #region Jump and Crouch
+        coyoteJump = true;
+        yield return new WaitForSeconds(0.2f); //This float value can be changed depending on the gameplay
+        coyoteJump = false;
+    }
+
+    void Jump()
+    {
+        //If crouch - standingCollider = false + enable crouch anim
+        //Reduce the x velocity
+        //If uncrouch - standingCollider = true + disable crouch anim
+        //Jump
+        if (isGrounded)
+        {
+            multipleJump = true;
+            availableJumps--;
+
+            rb.velocity = Vector2.up * jumpPower;
+            anim.SetBool("Jump", true);
+        }
+        else
+        {
+            if(coyoteJump)
+            {
+                multipleJump = true;
+                availableJumps--;
+
+                rb.velocity = Vector2.up * jumpPower;
+                anim.SetBool("Jump", true);
+                Debug.Log("Coyote Jump");
+            }
+
+            if (multipleJump && availableJumps > 0)
+            {
+                availableJumps--;
+
+                rb.velocity = Vector2.up * jumpPower;
+                anim.SetBool("Jump", true);
+            }
+        }        
+    }
+    #endregion
+
+    void Move(float direction, bool crouchFlag)
+    {
+        #region Crouch
 
         //If we are crouch and then disable crouching
         //Check above player head for collisions
@@ -92,25 +159,9 @@ public class Fox : MonoBehaviour
                 crouchFlag = true;
         }
 
-
-
-        //If crouch - standingCollider = false + enable crouch anim
-        //Reduce the x velocity
-        //If uncrouch - standingCollider = true + disable crouch anim
-        if(isGrounded)
-        {
-            standingCollider.enabled = !crouchFlag;
-            //Jump
-            if (jumpFlag)
-            {
-                isGrounded = false;
-                jumpFlag = false;
-                //Jump force implemented
-                rb.AddForce(new Vector2(0f, jumpPower));
-            }
-        }
-
         anim.SetBool("Crouch", crouchFlag);
+        standingCollider.enabled = !crouchFlag;
+        
 
         #endregion
 
