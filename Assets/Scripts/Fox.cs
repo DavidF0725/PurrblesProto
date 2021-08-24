@@ -40,7 +40,7 @@ public class Fox : MonoBehaviour
 
     void Update()
     {
-        //Set the yVelocity in the anim
+        //Set the yVelocity in the animator
         anim.SetFloat("yVelocity", rb.velocity.y);
 
         //Store the horizontal value 
