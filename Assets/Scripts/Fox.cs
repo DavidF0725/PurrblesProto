@@ -1,9 +1,12 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using System;
 
 public class Fox : MonoBehaviour
-{       
+{
+    public static event Action HasLanded;
+
     Rigidbody2D rb;
     Animator anim;
     [Header("GroundCheck")]
@@ -120,10 +123,26 @@ public class Fox : MonoBehaviour
                 availableJumps = totalJumps;
                 //Figure out if remove the code below:
                 multipleJump = false;
-            }                                      
+
+                //Trigger the HasLanded event
+                if(HasLanded!=null)
+                    HasLanded.Invoke();
+            }  
+            
+            //Check if any of the colliders is moving platform
+            //Parent it to this transform
+            foreach(var c in colliders)
+            {
+                if (c.tag == "MovingPlatform")
+                    transform.parent = c.transform;
+
+            }
         }
         else
         {
+            //UnParent the transform
+            transform.parent = null;
+
             if (wasGrounded)
                 StartCoroutine(CoyoteJumpDelay());
         }
