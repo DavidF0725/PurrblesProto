@@ -7,17 +7,21 @@ public class Fox : MonoBehaviour
     Rigidbody2D rb;
     Animator anim;
     [Header("GroundCheck")]
-    [SerializeField] Collider2D standingCollider;
+    [SerializeField] Collider2D standingCollider,crouchingCollider;
     [SerializeField] Transform groundCheckColl;
     [Header("Crouch")]
     [SerializeField] Transform ceilingCheckColl;
     [SerializeField] LayerMask groundLayer;
+    [SerializeField] Transform wallCheckColl;
+    [SerializeField] LayerMask wallLayer;
 
     //Inspector Variables
     const float groundCheckRadius = 0.2f;
     const float ceilingCheckRadius = 0.2f;
+    const float wallCheckRadius = 0.2f;
     [SerializeField] float speed = 2;
     [SerializeField] float jumpPower = 500;
+    [SerializeField] float sliderFactor = 0.2f;
     [SerializeField] int totalJumps;
     int availableJumps;
     float horizontalValue;
@@ -30,6 +34,8 @@ public class Fox : MonoBehaviour
     bool crouchPressed;
     bool multipleJump;
     bool coyoteJump;
+    bool isSliding;
+    bool isDead;
 
     void Awake()
     {
@@ -41,6 +47,9 @@ public class Fox : MonoBehaviour
 
     void Update()
     {
+        if (CanMoveorInteract()==false)
+            return;
+
         //Set the yVelocity in the animator
         anim.SetFloat("yVelocity", rb.velocity.y);
 
@@ -65,6 +74,9 @@ public class Fox : MonoBehaviour
         else if (Input.GetButtonUp("Crouch"))
             crouchPressed = false;
 
+        //Check if we are touching a wall to slide on it
+        WallCheck();
+
     }
 
     //Every time the user presses a key
@@ -80,6 +92,18 @@ public class Fox : MonoBehaviour
         Gizmos.DrawSphere(groundCheckColl.position, groundCheckRadius);
         Gizmos.color = Color.red;
         Gizmos.DrawSphere(ceilingCheckColl.position, ceilingCheckRadius);
+    }
+
+    bool CanMoveorInteract()
+    {
+        bool can = true;
+
+        if (FindObjectOfType<InteractionSystem>().isExamining)
+            can = false;
+        if (isDead)
+            can = false;
+
+        return can;
     }
     void GroundCheck()
     {
@@ -106,6 +130,39 @@ public class Fox : MonoBehaviour
             
         //If detect ground the jump bool is disabled in anim
         anim.SetBool("Jump", !isGrounded);
+    }
+
+    void WallCheck()
+    {
+        if (Physics2D.OverlapCircle(wallCheckColl.position, wallCheckRadius,wallLayer)
+            && Mathf.Abs(horizontalValue) > 0
+            && rb.velocity.y<0
+            && !isGrounded)
+        {
+            if(!isSliding)
+            {
+                availableJumps = totalJumps;
+                multipleJump = false;
+            }
+
+            Debug.Log("Slide");
+            Vector2 v = rb.velocity;
+            v.y = -sliderFactor;
+            rb.velocity = v;
+            isSliding = true;
+
+            if(Input.GetButtonDown("Jump"))
+            {
+                availableJumps--;
+
+                rb.velocity = Vector2.up * jumpPower;
+                anim.SetBool("Jump", true);
+            }
+        }
+        else
+        {
+            isSliding = false;
+        }
     }
 
     #region Jump
@@ -166,7 +223,8 @@ public class Fox : MonoBehaviour
         }
 
         anim.SetBool("Crouch", crouchFlag);
-        standingCollider.enabled = !crouchFlag;        
+        standingCollider.enabled = !crouchFlag;
+        crouchingCollider.enabled = crouchFlag;
         #endregion
 
         #region Move and Run
@@ -202,5 +260,16 @@ public class Fox : MonoBehaviour
         // of the RigidBody2D velocity
         anim.SetFloat("xVelocity", Mathf.Abs(rb.velocity.x));
         #endregion
-    }   
+    }
+    
+    public void Death()
+    {
+        isDead = true;
+        FindObjectOfType<LevelManager>().Restart();
+    }
+
+    public void ResetPlayer()
+    {
+        isDead = false;
+    }
 }
